@@ -21,6 +21,18 @@ const lessonNotes = {
     failure: "Where this fails: different signals should matter by different amounts, and some signals can even push the prediction down.",
     mechanism: "Neuron fix: multiply each feature by a learned weight, add a baseline bias, and collect the result into a score z.",
     takeaway: "Takeaway: weights are importance and direction; bias is the starting assumption before evidence arrives.",
+    body: [
+      "Imagine we want to predict whether a student passes. We have three rough signals: study hours, sleep quality, and practice score.",
+      "The primitive approach is to add them all together. That is easy, but crude. One extra hour of study probably should not count the same as a small change in sleep quality. Some features should matter more; some may matter less; some may even push the answer down.",
+      "A neuron is a tiny evidence-adding machine. It multiplies each input by a weight, then adds a bias. The result is the raw score z.",
+      "Think of a weight as both importance and direction. A large positive weight says this feature strongly supports the prediction. A negative weight says this feature pushes against it. The bias is the model's baseline tendency before seeing the features.",
+    ],
+    experiment: [
+      "Increase the study-hours weight. The study evidence bar should get louder.",
+      "Make the sleep-quality weight negative. Notice that good sleep now reduces the score; that would be a strange learned relationship.",
+      "Move the bias up. The model becomes more optimistic before any feature evidence arrives.",
+    ],
+    formula: "z = w1(study hours) + w2(sleep quality) + w3(practice score) + b",
   },
   activation: {
     question: "A neuron has a score. How should that become an output?",
@@ -28,6 +40,18 @@ const lessonNotes = {
     failure: "Where this fails: raw scores can be negative, unbounded, and hard to compare across neurons.",
     mechanism: "Activation fix: pass z through a response rule like step, sigmoid, or ReLU.",
     takeaway: "Takeaway: activation is the neuron's behavior curve. It decides what firing means.",
+    body: [
+      "After the weighted vote, we have a raw score z. But raw scores are awkward. A score of 2.3 does not automatically mean yes, no, or 91%.",
+      "The activation function is the neuron's response rule. It takes the score and turns it into behavior.",
+      "A step function gives a hard yes/no. A sigmoid gives a smooth probability-like response between 0 and 1. ReLU ignores negative scores and passes positive scores through.",
+      "The key point is that the weighted sum asks, 'How much evidence do we have?' The activation asks, 'Given that evidence, how strongly should this neuron respond?'",
+    ],
+    experiment: [
+      "Switch from sigmoid to step. Notice the output stops changing smoothly.",
+      "Move the bias. The score slides left or right along the curve.",
+      "Increase the study-hours weight. The same input now lands in a different part of the response curve.",
+    ],
+    formula: "y = activation(z)",
   },
   perceptron: {
     question: "How does one neuron separate two kinds of examples?",
@@ -35,6 +59,18 @@ const lessonNotes = {
     failure: "Where this fails: real decisions often depend on a mixture of features, not a single axis.",
     mechanism: "Perceptron fix: use w1x + w2y + b. The points where this equals zero form a boundary.",
     takeaway: "Takeaway: one perceptron draws one straight boundary. Useful, but limited.",
+    body: [
+      "Now reduce the neuron to two inputs: study and sleep. The neuron computes a score from a weighted combination of both.",
+      "If z is positive, the perceptron fires. If z is negative, it does not fire. The boundary is the place where the neuron is exactly undecided: z = 0.",
+      "That equation draws a line. The line is not arbitrary; it is the set of all points where the weighted evidence balances out.",
+      "Changing w1 and w2 rotates the line because it changes the direction of the weight vector. Changing bias slides the line because it changes the baseline threshold.",
+    ],
+    experiment: [
+      "Move w1 and w2. Watch the boundary rotate.",
+      "Move bias. Watch the boundary slide without changing its direction.",
+      "Try to separate all points perfectly. If a pattern needs a curved boundary, one perceptron will struggle.",
+    ],
+    formula: "z = w1(study) + w2(sleep) + b; boundary when z = 0",
   },
   network: {
     question: "What if the data cannot be separated by one straight line?",
@@ -42,6 +78,18 @@ const lessonNotes = {
     failure: "Where this fails: some patterns need several simple tests combined together.",
     mechanism: "Hidden-layer fix: let several neurons each carve one region, then combine their outputs.",
     takeaway: "Takeaway: hidden neurons are feature builders. Layers compose simple boundaries into richer shapes.",
+    body: [
+      "A single perceptron gives one line. That is useful when the data is linearly separable, but many patterns are not.",
+      "Instead of asking one neuron to solve the whole problem, a hidden layer uses several neurons. Each one asks a simpler question: is this point on my side of this boundary?",
+      "The output neuron then combines those answers. The network is no longer looking only at raw study and sleep; it is looking at features created by the hidden neurons.",
+      "This is the start of representation learning. Layers build intermediate features that make the final decision easier.",
+    ],
+    experiment: [
+      "Move the hidden boundary spread. Notice how the combined region grows or shrinks.",
+      "Compare the colored region to the single perceptron board above.",
+      "Read each hidden boundary as one simple test, then read the final colored region as their combination.",
+    ],
+    formula: "hidden features = activation(simple boundaries); output = combination of hidden features",
   },
   descent: {
     question: "How does the model know how to improve a bad prediction?",
@@ -49,6 +97,18 @@ const lessonNotes = {
     failure: "Where this fails: random search wastes time and gets worse as the model grows.",
     mechanism: "Gradient descent fix: use backpropagation to estimate the slope of loss with respect to each weight, then step downhill.",
     takeaway: "Takeaway: backprop supplies direction; the learning rate supplies step size.",
+    body: [
+      "Once the model predicts, we compare the prediction to the target. The loss is just a number that says how wrong the model was.",
+      "The primitive way to improve would be random search: try a slightly different weight and hope the loss goes down. That does not scale.",
+      "Gradient descent uses the slope of the loss curve. If the slope is positive, step left. If the slope is negative, step right. If the slope is steep, the weight matters a lot.",
+      "Backpropagation is the efficient way to compute these slopes for every weight in the network. Backprop gives the direction; gradient descent takes the step; learning rate controls the step size.",
+    ],
+    experiment: [
+      "Press 'Take downhill step' repeatedly. The weight should move along the loss curve.",
+      "Increase the learning rate. Large steps move faster, but can overshoot.",
+      "Change the target. The whole direction of improvement can flip.",
+    ],
+    formula: "new weight = old weight - learning_rate * slope",
   },
 } as const;
 const pointSet = [
@@ -132,7 +192,7 @@ export function CourseExperience() {
           <section className="rounded-lg border border-white/10 bg-[#171923] p-5 sm:p-7">
             <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-[#6ee7d8]">visual intuition first</p>
             <h2 className="mt-3 max-w-4xl text-4xl font-black leading-tight sm:text-6xl">
-              Make every symbol point to something you can see.
+              Start with the puzzle. Then earn the math.
             </h2>
             <p className="mt-5 max-w-3xl text-lg leading-8 text-[#c9c1ad]">
               The course now follows the same pattern as the articles: concrete puzzle, primitive
@@ -313,7 +373,6 @@ function Board({
   controls: React.ReactNode;
   explanation: string;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <section id={id} className="scroll-mt-4 rounded-lg border border-white/10 bg-[#171923] p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -323,34 +382,53 @@ function Board({
         </div>
         <p className="max-w-2xl rounded-md bg-white/10 px-3 py-2 text-sm font-bold text-[#f0e8d4]">{prompt}</p>
       </div>
-      <div className="mb-4 grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-lg border border-[#ffd166]/25 bg-[#ffd166]/10 p-4">
+      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-3">
+          <div className="rounded-lg border border-[#ffd166]/25 bg-[#ffd166]/10 p-4">
           <p className="font-mono text-xs font-black uppercase tracking-[0.16em] text-[#ffd166]">question</p>
           <p className="mt-2 text-lg font-black leading-7">{notes.question}</p>
         </div>
-        <div className="grid gap-2 text-sm leading-6 text-[#d7cfba]">
-          <p className="rounded-md bg-white/[0.05] p-3">{notes.naive}</p>
-          <p className="rounded-md bg-white/[0.05] p-3">{notes.failure}</p>
+          <article className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.16em] text-[#6ee7d8]">walkthrough</p>
+            <div className="mt-3 space-y-3 text-sm leading-6 text-[#d7cfba]">
+              {notes.body.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </article>
+        </div>
+        <div className="grid gap-3 text-sm leading-6 text-[#d7cfba]">
+          <p className="rounded-md border border-white/10 bg-white/[0.05] p-3">{notes.naive}</p>
+          <p className="rounded-md border border-white/10 bg-white/[0.05] p-3">{notes.failure}</p>
+          <div className="rounded-md border border-[#6ee7d8]/20 bg-[#6ee7d8]/10 p-3">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#6ee7d8]">mechanism</p>
+            <p className="mt-2 font-bold text-[#eefaf7]">{notes.mechanism}</p>
+          </div>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-white/10 bg-[#10131b]">{visual}</div>
         <div className="space-y-3">
           <div className="grid gap-3">{controls}</div>
-          <div className="rounded-lg border border-[#6ee7d8]/20 bg-[#6ee7d8]/10 p-3">
-            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#6ee7d8]">mechanism</p>
-            <p className="mt-2 text-sm font-bold leading-6 text-[#eefaf7]">{notes.mechanism}</p>
-          </div>
           <div className="rounded-lg border border-[#ffd166]/20 bg-[#ffd166]/10 p-3">
             <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#ffd166]">rule of thumb</p>
             <p className="mt-2 text-sm font-bold leading-6 text-[#fff3cf]">{notes.takeaway}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
-            <button className="flex w-full justify-between text-left font-black" onClick={() => setOpen((value) => !value)}>
-              <span>{open ? "Hide explanation" : "Show explanation"}</span>
-              <span>{open ? "-" : "+"}</span>
-            </button>
-            {open ? <p className="mt-3 text-sm leading-6 text-[#d7cfba]">{explanation}</p> : null}
+            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">try this</p>
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-[#d7cfba]">
+              {notes.experiment.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-[#0f1117] p-3">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">formal hook</p>
+            <p className="mt-2 font-mono text-xs leading-6 text-[#f0e8d4]">{notes.formula}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">diagram note</p>
+            <p className="mt-2 text-sm leading-6 text-[#d7cfba]">{explanation}</p>
           </div>
         </div>
       </div>
