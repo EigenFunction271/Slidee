@@ -33,6 +33,7 @@ const lessonNotes = {
       "Move the bias up. The model becomes more optimistic before any feature evidence arrives.",
     ],
     formula: "z = w1(study hours) + w2(sleep quality) + w3(practice score) + b",
+    formulaContext: "This is just the bookkeeping for the evidence bars. Each term is one feature's contribution; b is the starting score.",
   },
   activation: {
     question: "A neuron has a score. How should that become an output?",
@@ -52,6 +53,7 @@ const lessonNotes = {
       "Increase the study-hours weight. The same input now lands in a different part of the response curve.",
     ],
     formula: "y = activation(z)",
+    formulaContext: "Read this as: take the raw score from the previous board, then pass it through a response curve.",
   },
   perceptron: {
     question: "How does one neuron separate two kinds of examples?",
@@ -71,6 +73,7 @@ const lessonNotes = {
       "Try to separate all points perfectly. If a pattern needs a curved boundary, one perceptron will struggle.",
     ],
     formula: "z = w1(study) + w2(sleep) + b; boundary when z = 0",
+    formulaContext: "The formula is a score for one point. Setting that score to zero draws the undecided line.",
   },
   network: {
     question: "What if the data cannot be separated by one straight line?",
@@ -90,6 +93,7 @@ const lessonNotes = {
       "Read each hidden boundary as one simple test, then read the final colored region as their combination.",
     ],
     formula: "hidden features = activation(simple boundaries); output = combination of hidden features",
+    formulaContext: "Each hidden neuron turns a boundary test into a feature. The output neuron combines those new features.",
   },
   descent: {
     question: "How does the model know how to improve a bad prediction?",
@@ -109,17 +113,9 @@ const lessonNotes = {
       "Change the target. The whole direction of improvement can flip.",
     ],
     formula: "new weight = old weight - learning_rate * slope",
+    formulaContext: "This only makes sense after defining loss: loss is the penalty for being wrong, and the slope says which way reduces that penalty.",
   },
 } as const;
-const pointSet = [
-  { x: -2.2, y: 1.5, label: 0 },
-  { x: -1.4, y: -1.4, label: 0 },
-  { x: -0.4, y: 2.1, label: 0 },
-  { x: 0.9, y: 1.3, label: 1 },
-  { x: 1.8, y: -0.1, label: 1 },
-  { x: 2.25, y: -1.6, label: 1 },
-];
-
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -423,8 +419,9 @@ function Board({
             </ul>
           </div>
           <div className="rounded-lg border border-white/10 bg-[#0f1117] p-3">
-            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">formal hook</p>
-            <p className="mt-2 font-mono text-xs leading-6 text-[#f0e8d4]">{notes.formula}</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">formula in context</p>
+            <p className="mt-2 text-sm leading-6 text-[#d7cfba]">{notes.formulaContext}</p>
+            <p className="mt-3 rounded-md bg-black/30 p-2 font-mono text-xs leading-6 text-[#f0e8d4]">{notes.formula}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <p className="font-mono text-xs font-black uppercase tracking-[0.14em] text-[#c9c1ad]">diagram note</p>
@@ -558,56 +555,64 @@ function ActivationBoard({ z, y, kind }: { z: number; y: number; kind: Activatio
 
 function PerceptronBoard({ boundary }: { boundary: { w1: number; w2: number; b: number } }) {
   const segment = boundarySegment(boundary);
-  const normal = normalize({ x: boundary.w1, y: boundary.w2 }, 1.1);
+  const sample = { x: 1.2, y: 1.0 };
+  const studyContribution = boundary.w1 * sample.x;
+  const sleepContribution = boundary.w2 * sample.y;
+  const score = studyContribution + sleepContribution + boundary.b;
+  const fires = score >= 0;
   return (
     <svg viewBox="0 0 820 430" className="h-full w-full" role="img" aria-label="Perceptron boundary board">
       <defs>
         <clipPath id="perceptron-plane">
-          <rect x="115" y="82" width="470" height="280" rx="12" />
+          <rect x="430" y="104" width="310" height="250" rx="12" />
         </clipPath>
-        <marker id="arrow-tip" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L9,3 z" fill="#ffd166" />
-        </marker>
       </defs>
       <BoardGrid />
       <text x="42" y="46" className="fill-[#fff8e8] text-[24px] font-black">
-        z = w1(study) + w2(sleep) + b
+        Score one point, then draw the zero-score line
       </text>
       <text x="42" y="72" className="fill-[#c9c1ad] text-[15px] font-bold">
-        Every point on the white line has z = 0: exactly undecided.
+        A perceptron fires when z is positive. The boundary is where z is exactly zero.
       </text>
-      <rect x="115" y="82" width="470" height="280" rx="12" fill="#0c0f15" stroke="#fff8e8" strokeOpacity="0.3" />
-      <g clipPath="url(#perceptron-plane)">
-        <DecisionFill boundary={boundary} />
-        <PlaneAxis />
-        {segment ? (
-          <line x1={mapX(segment[0].x)} y1={mapY(segment[0].y)} x2={mapX(segment[1].x)} y2={mapY(segment[1].y)} stroke="#fff8e8" strokeWidth="5" />
-        ) : null}
+
+      <g transform="translate(48 112)">
+        <text x="0" y="0" className="fill-[#ffd166] text-[17px] font-black">Point A</text>
+        <text x="0" y="26" className="fill-[#c9c1ad] text-[13px] font-bold">study = {fmt(sample.x)}, sleep = {fmt(sample.y)}</text>
+        <ContributionRow y={70} label="study evidence" value={studyContribution} />
+        <ContributionRow y={130} label="sleep evidence" value={sleepContribution} />
+        <ContributionRow y={190} label="bias baseline" value={boundary.b} />
+        <line x1="0" y1="230" x2="310" y2="230" stroke="#fff8e8" strokeOpacity="0.25" strokeWidth="2" />
+        <text x="0" y="268" className={fires ? "fill-[#ff7a59] text-[25px] font-black" : "fill-[#6ee7d8] text-[25px] font-black"}>
+          z = {fmt(score)}: {fires ? "fires" : "does not fire"}
+        </text>
+        <text x="0" y="300" className="fill-[#c9c1ad] text-[13px] font-bold">
+          This same score rule is applied to every point on the plane.
+        </text>
       </g>
-      <line x1={mapX(0)} y1={mapY(0)} x2={mapX(normal.x)} y2={mapY(normal.y)} stroke="#ffd166" strokeWidth="4" markerEnd="url(#arrow-tip)" />
-      <text x={mapX(normal.x) + 12} y={mapY(normal.y) - 8} className="fill-[#ffd166] text-[13px] font-black">
-        weight direction
-      </text>
-      {pointSet.map((point) => {
-        const predicted = boundary.w1 * point.x + boundary.w2 * point.y + boundary.b >= 0 ? 1 : 0;
-        return (
-          <circle
-            key={`${point.x}-${point.y}`}
-            cx={mapX(point.x)}
-            cy={mapY(point.y)}
-            r="12"
-            fill={point.label ? "#ff7a59" : "#6ee7d8"}
-            stroke={predicted === point.label ? "#0f1117" : "#fff8e8"}
-            strokeWidth={predicted === point.label ? 3 : 6}
+
+      <rect x="430" y="104" width="310" height="250" rx="12" fill="#0c0f15" stroke="#fff8e8" strokeOpacity="0.3" />
+      <g clipPath="url(#perceptron-plane)">
+        <SimpleDecisionFill boundary={boundary} />
+        <SimplePlaneAxis />
+        {segment ? (
+          <line
+            x1={smallMapX(segment[0].x)}
+            y1={smallMapY(segment[0].y)}
+            x2={smallMapX(segment[1].x)}
+            y2={smallMapY(segment[1].y)}
+            stroke="#fff8e8"
+            strokeWidth="5"
           />
-        );
-      })}
-      <g transform="translate(625 118)">
-        <text x="0" y="0" className="fill-[#fff8e8] text-[17px] font-black">Read the picture</text>
-        <text x="0" y="34" className="fill-[#c9c1ad] text-[14px] font-bold">w1, w2 rotate.</text>
-        <text x="0" y="62" className="fill-[#c9c1ad] text-[14px] font-bold">bias slides.</text>
-        <text x="0" y="108" className="fill-[#6ee7d8] text-[14px] font-black">blue: z &lt; 0</text>
-        <text x="0" y="136" className="fill-[#ff7a59] text-[14px] font-black">coral: z &gt; 0</text>
+        ) : null}
+        <circle cx={smallMapX(sample.x)} cy={smallMapY(sample.y)} r="13" fill="#ffd166" stroke="#0f1117" strokeWidth="3" />
+      </g>
+      <text x="444" y="386" className="fill-[#6ee7d8] text-[13px] font-black">blue side: z &lt; 0</text>
+      <text x="598" y="386" className="fill-[#ff7a59] text-[13px] font-black">coral side: z &gt; 0</text>
+      <g transform="translate(430 68)">
+        <rect x="0" y="0" width="310" height="26" rx="7" fill="#ffffff" opacity="0.08" />
+        <text x="12" y="18" className="fill-[#fff8e8] text-[13px] font-black">
+          white line = all points where z = 0
+        </text>
       </g>
     </svg>
   );
@@ -660,6 +665,29 @@ function NetworkBoard({ spread }: { spread: number }) {
   );
 }
 
+function ContributionRow({ y, label, value }: { y: number; label: string; value: number }) {
+  const positive = value >= 0;
+  const width = Math.min(120, Math.abs(value) * 72);
+  return (
+    <g transform={`translate(0 ${y})`}>
+      <text x="0" y="5" className="fill-[#fff8e8] text-[14px] font-black">{label}</text>
+      <line x1="150" y1="0" x2="300" y2="0" stroke="#fff8e8" strokeOpacity="0.14" strokeWidth="9" strokeLinecap="round" />
+      <line
+        x1="225"
+        y1="0"
+        x2={225 + (positive ? width : -width)}
+        y2="0"
+        stroke={positive ? "#ff7a59" : "#6ee7d8"}
+        strokeWidth="16"
+        strokeLinecap="round"
+      />
+      <text x="318" y="5" className={positive ? "fill-[#ff7a59] text-[14px] font-black" : "fill-[#6ee7d8] text-[14px] font-black"}>
+        {positive ? "+" : ""}{fmt(value)}
+      </text>
+    </g>
+  );
+}
+
 function GradientDescentBoard({
   weight,
   nextWeight,
@@ -691,6 +719,8 @@ function GradientDescentBoard({
   }).join(" ");
   const current = { x: xFor(weight), y: yFor(loss) };
   const next = { x: xFor(nextWeight), y: yFor(lossAt(nextWeight)) };
+  const error = prediction - target;
+  const gap = Math.abs(error);
   return (
     <svg viewBox="0 0 820 430" className="h-full w-full" role="img" aria-label="Gradient descent board">
       <defs>
@@ -700,34 +730,72 @@ function GradientDescentBoard({
       </defs>
       <BoardGrid />
       <text x="42" y="46" className="fill-[#fff8e8] text-[24px] font-black">
-        Loss landscape for one weight
+        First define what better means
       </text>
       <text x="42" y="74" className="fill-[#c9c1ad] text-[15px] font-bold">
-        Random search is wasteful. Backprop gives the slope; gradient descent uses it.
+        We minimize loss because loss is the penalty for being wrong.
       </text>
-      <line x1="105" y1="335" x2="610" y2="335" stroke="#fff8e8" strokeWidth="2" />
-      <line x1="105" y1="335" x2="105" y2="98" stroke="#fff8e8" strokeWidth="2" />
-      <path d={path} fill="none" stroke="#6ee7d8" strokeWidth="6" strokeLinecap="round" />
-      <line x1={current.x} y1={current.y} x2={next.x} y2={next.y} stroke="#ffd166" strokeWidth="5" markerEnd="url(#step-tip)" />
-      <circle cx={current.x} cy={current.y} r="14" fill="#ff7a59" stroke="#fff8e8" strokeWidth="3" />
-      <circle cx={next.x} cy={next.y} r="8" fill="#ffd166" />
-      <text x={current.x} y={current.y - 22} textAnchor="middle" className="fill-[#fff8e8] text-[14px] font-black">
-        w = {fmt(weight)}
-      </text>
-      <text x="610" y="362" textAnchor="end" className="fill-[#c9c1ad] text-[13px] font-bold">
-        weight
-      </text>
-      <text x="64" y="112" className="fill-[#c9c1ad] text-[13px] font-bold">
-        loss
-      </text>
-      <g transform="translate(650 112)">
-        <text x="0" y="0" className="fill-[#fff8e8] text-[16px] font-black">readout</text>
-        <text x="0" y="38" className="fill-[#c9c1ad] text-[14px] font-bold">prediction</text>
-        <text x="0" y="63" className="fill-[#6ee7d8] text-[22px] font-black">{fmt(prediction)}</text>
-        <text x="0" y="102" className="fill-[#c9c1ad] text-[14px] font-bold">target</text>
-        <text x="0" y="127" className="fill-[#ffd166] text-[22px] font-black">{target}</text>
-        <text x="0" y="166" className="fill-[#c9c1ad] text-[14px] font-bold">slope</text>
-        <text x="0" y="191" className="fill-[#ff7a59] text-[22px] font-black">{fmt(slope)}</text>
+
+      <g transform="translate(48 112)">
+        <text x="0" y="0" className="fill-[#ffd166] text-[17px] font-black">1. Compare prediction to target</text>
+        <line x1="40" y1="190" x2="40" y2="40" stroke="#fff8e8" strokeOpacity="0.25" strokeWidth="8" strokeLinecap="round" />
+        <line x1="105" y1="190" x2="105" y2="40" stroke="#fff8e8" strokeOpacity="0.25" strokeWidth="8" strokeLinecap="round" />
+        <line x1="40" y1="190" x2="40" y2={190 - prediction * 150} stroke="#6ee7d8" strokeWidth="18" strokeLinecap="round" />
+        <line x1="105" y1="190" x2="105" y2={190 - target * 150} stroke="#ffd166" strokeWidth="18" strokeLinecap="round" />
+        <line
+          x1="146"
+          y1={190 - prediction * 150}
+          x2="146"
+          y2={190 - target * 150}
+          stroke="#ff7a59"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
+        <text x="18" y="222" className="fill-[#6ee7d8] text-[13px] font-black">prediction {fmt(prediction)}</text>
+        <text x="88" y="246" className="fill-[#ffd166] text-[13px] font-black">target {target}</text>
+        <text x="170" y="120" className="fill-[#ff7a59] text-[15px] font-black">gap = {fmt(gap)}</text>
+      </g>
+
+      <g transform="translate(292 112)">
+        <text x="0" y="0" className="fill-[#ffd166] text-[17px] font-black">2. Turn the gap into loss</text>
+        <rect x="0" y="44" width="180" height="122" rx="14" fill="#ffffff" opacity="0.08" />
+        <text x="20" y="84" className="fill-[#c9c1ad] text-[15px] font-bold">loss penalizes error</text>
+        <text x="20" y="123" className="fill-[#fff8e8] text-[20px] font-black">loss = 1/2 gap²</text>
+        <text x="20" y="154" className="fill-[#ff7a59] text-[24px] font-black">{fmt(loss)}</text>
+        <text x="0" y="208" className="fill-[#c9c1ad] text-[13px] font-bold">Smaller loss means a better prediction.</text>
+      </g>
+
+      <g transform="translate(505 105)">
+        <text x="0" y="7" className="fill-[#ffd166] text-[17px] font-black">3. Step toward lower loss</text>
+        <line x1="20" y1="255" x2="275" y2="255" stroke="#fff8e8" strokeWidth="2" />
+        <line x1="20" y1="255" x2="20" y2="62" stroke="#fff8e8" strokeWidth="2" />
+        <path
+          d={path
+            .replaceAll("M ", "M ")
+            .replaceAll("L ", "L ")
+            .replace(/([ML]) ([0-9.]+) ([0-9.]+)/g, (_match, command, x, y) => {
+              const shiftedX = Number(x) - 85;
+              const shiftedY = Number(y) - 80;
+              return `${command} ${shiftedX} ${shiftedY}`;
+            })}
+          fill="none"
+          stroke="#6ee7d8"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <line
+          x1={current.x - 85}
+          y1={current.y - 80}
+          x2={next.x - 85}
+          y2={next.y - 80}
+          stroke="#ffd166"
+          strokeWidth="5"
+          markerEnd="url(#step-tip)"
+        />
+        <circle cx={current.x - 85} cy={current.y - 80} r="11" fill="#ff7a59" stroke="#fff8e8" strokeWidth="3" />
+        <text x="30" y="286" className="fill-[#c9c1ad] text-[12px] font-bold">weight</text>
+        <text x="-8" y="72" className="fill-[#c9c1ad] text-[12px] font-bold">loss</text>
+        <text x="0" y="324" className="fill-[#ff7a59] text-[13px] font-black">slope = {fmt(slope)}</text>
       </g>
     </svg>
   );
@@ -834,6 +902,14 @@ function mapY(y: number) {
   return 222 - y * 43;
 }
 
+function smallMapX(x: number) {
+  return 585 + x * 45;
+}
+
+function smallMapY(y: number) {
+  return 229 - y * 35;
+}
+
 function boundarySegment(boundary: { w1: number; w2: number; b: number }) {
   const candidates: Point[] = [];
   if (Math.abs(boundary.w2) > 0.0001) {
@@ -855,19 +931,25 @@ function boundarySegment(boundary: { w1: number; w2: number; b: number }) {
   return unique.length >= 2 ? [unique[0], unique[1]] : null;
 }
 
-function normalize(vector: Point, length: number) {
-  const magnitude = Math.hypot(vector.x, vector.y) || 1;
-  return { x: (vector.x / magnitude) * length, y: (vector.y / magnitude) * length };
-}
-
-function DecisionFill({ boundary }: { boundary: { w1: number; w2: number; b: number } }) {
+function SimpleDecisionFill({ boundary }: { boundary: { w1: number; w2: number; b: number } }) {
   const positive = halfPlane(boundary);
   return (
     <g>
-      <rect x="115" y="82" width="470" height="280" fill="#6ee7d8" opacity="0.18" />
+      <rect x="430" y="104" width="310" height="250" fill="#6ee7d8" opacity="0.18" />
       {positive.length > 2 ? (
-        <polygon points={positive.map((point) => `${mapX(point.x)},${mapY(point.y)}`).join(" ")} fill="#ff7a59" opacity="0.25" />
+        <polygon points={positive.map((point) => `${smallMapX(point.x)},${smallMapY(point.y)}`).join(" ")} fill="#ff7a59" opacity="0.25" />
       ) : null}
+    </g>
+  );
+}
+
+function SimplePlaneAxis() {
+  return (
+    <g opacity="0.6">
+      <line x1={smallMapX(-3)} y1={smallMapY(0)} x2={smallMapX(3)} y2={smallMapY(0)} stroke="#fff8e8" />
+      <line x1={smallMapX(0)} y1={smallMapY(-3)} x2={smallMapX(0)} y2={smallMapY(3)} stroke="#fff8e8" />
+      <text x={smallMapX(1.75)} y={smallMapY(0) - 8} className="fill-[#c9c1ad] text-[12px] font-bold">study</text>
+      <text x={smallMapX(0) + 8} y={smallMapY(2.45)} className="fill-[#c9c1ad] text-[12px] font-bold">sleep</text>
     </g>
   );
 }
