@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 type ActivationKind = "step" | "sigmoid" | "relu";
 type XY = { x: number; y: number };
 
+const featureLabels = ["study time", "sleep quality", "prior practice"];
+
 const lessons = [
   {
     id: "weighted-vote",
@@ -154,7 +156,7 @@ export function CourseExperience() {
               {inputs.map((input, index) => (
                 <RangeControl
                   key={`input-${index}`}
-                  label={`input x${index + 1}`}
+                  label={featureLabels[index]}
                   value={input}
                   min={-1.5}
                   max={1.5}
@@ -173,7 +175,7 @@ export function CourseExperience() {
                   onChange={(value) => updateWeight(index, value)}
                 />
               ))}
-              <RangeControl label="bias b" value={bias} min={-2} max={2} step={0.05} onChange={setBias} />
+              <RangeControl label="bias: baseline tendency" value={bias} min={-2} max={2} step={0.05} onChange={setBias} />
               <button
                 className="rounded-md bg-[#f7cf5f] px-4 py-3 text-sm font-black text-[#17130d] transition hover:bg-[#ffe18a]"
                 onClick={() => setPulse((current) => current + 1)}
@@ -184,7 +186,7 @@ export function CourseExperience() {
             <ExplanationDrawer
               title="What this shows"
               body="Each edge carries an input multiplied by its weight. Thicker edges matter more. Teal edges add evidence; coral edges subtract it. The neuron collects those pieces into z, then the next lesson turns z into behavior."
-              advanced="The weighted sum is z = w1x1 + w2x2 + w3x3 + b. A positive contribution increases z. A negative contribution decreases z. Bias shifts the score before any input arrives."
+              advanced="The weighted sum is z = w1x1 + w2x2 + w3x3 + b. In this toy example, x1 is study time, x2 is sleep quality, and x3 is prior practice. Bias is the model's baseline tendency before it sees the features."
             />
           </LessonStage>
 
@@ -201,7 +203,7 @@ export function CourseExperience() {
                 ]}
                 onChange={setActivation}
               />
-              <RangeControl label="bias b" value={bias} min={-2} max={2} step={0.05} onChange={setBias} />
+              <RangeControl label="bias: baseline shift" value={bias} min={-2} max={2} step={0.05} onChange={setBias} />
               <RangeControl label="weight w1" value={weights[0]} min={-2.5} max={2.5} step={0.05} onChange={(value) => updateWeight(0, value)} />
               <button
                 className="rounded-md bg-[#25211a] px-4 py-3 text-sm font-black text-white transition hover:bg-[#3b3327]"
@@ -287,6 +289,7 @@ export function CourseExperience() {
               target={target}
               loss={loss}
               pulse={pulseBack}
+              learningRate={learningRate}
             />
             <ControlsDock>
               <SegmentedControl
@@ -315,8 +318,8 @@ export function CourseExperience() {
             </ControlsDock>
             <ExplanationDrawer
               title="What backprop is doing"
-              body="The target says where the output should be. The loss measures how far away the prediction is. One learning step sends that error backward and nudges the weights that produced it."
-              advanced="For sigmoid output with squared error, the local update is proportional to (prediction - target) * prediction * (1 - prediction) * input. The learning rate scales the size of the step."
+              body="Backprop is the slope-finding part. It tells gradient descent which way the loss curve goes for each weight. The learning rate decides how far to step downhill."
+              advanced="For sigmoid output with squared error, the slope for w1 is proportional to (prediction - target) * prediction * (1 - prediction) * study_time. The update is w1 = w1 - learning_rate * slope."
             />
           </LessonStage>
         </div>
@@ -505,12 +508,12 @@ function NeuronWeightedVoteScene({
   pulse: number;
 }) {
   const inputNodes = [
-    { x: 80, y: 90 },
-    { x: 80, y: 190 },
-    { x: 80, y: 290 },
+    { x: 95, y: 90 },
+    { x: 95, y: 190 },
+    { x: 95, y: 290 },
   ];
-  const neuron = { x: 390, y: 190 };
-  const output = { x: 650, y: 190 };
+  const neuron = { x: 430, y: 190 };
+  const output = { x: 660, y: 190 };
 
   return (
     <VisualFrame dark>
@@ -525,6 +528,9 @@ function NeuronWeightedVoteScene({
           </filter>
         </defs>
         <GridLines dark />
+        <text x="42" y="42" className="fill-[#fff8e8] text-[22px] font-black">
+          Toy prediction: will a student pass?
+        </text>
         {inputNodes.map((node, index) => {
           const contribution = inputs[index] * weights[index];
           return (
@@ -532,19 +538,25 @@ function NeuronWeightedVoteScene({
               <SignalEdge from={node} to={neuron} weight={weights[index]} />
               <SignalPulse key={`${pulse}-${index}`} from={node} to={neuron} delay={index * 0.12} positive={contribution >= 0} />
               <Node x={node.x} y={node.y} label={`x${index + 1}`} value={inputs[index]} active={Math.abs(inputs[index])} />
-              <text x="165" y={node.y - 12} className="fill-[#fff8e8] text-[15px] font-bold">
-                {format(inputs[index])} x {format(weights[index])}
+              <text x="150" y={node.y - 24} className="fill-[#fff8e8] text-[15px] font-black">
+                {featureLabels[index]}
               </text>
-              <text x="165" y={node.y + 12} className={contribution >= 0 ? "fill-[#6de0d2] text-[13px] font-bold" : "fill-[#ff8c6b] text-[13px] font-bold"}>
-                contribution {format(contribution)}
+              <text x="150" y={node.y - 3} className="fill-[#d9cfb8] text-[13px] font-bold">
+                value {format(inputs[index])} x weight {format(weights[index])}
+              </text>
+              <text x="150" y={node.y + 18} className={contribution >= 0 ? "fill-[#6de0d2] text-[13px] font-bold" : "fill-[#ff8c6b] text-[13px] font-bold"}>
+                contribution to score: {format(contribution)}
               </text>
             </g>
           );
         })}
-        <line x1="315" y1="330" x2={neuron.x - 45} y2={neuron.y + 22} stroke="#f7cf5f" strokeWidth="4" strokeDasharray="8 8" />
-        <circle cx="315" cy="330" r="28" fill="#f7cf5f" opacity="0.18" />
-        <text x="315" y="336" textAnchor="middle" className="fill-[#f7cf5f] text-[16px] font-black">
-          b {format(bias)}
+        <line x1="340" y1="330" x2={neuron.x - 45} y2={neuron.y + 22} stroke="#f7cf5f" strokeWidth="4" strokeDasharray="8 8" />
+        <circle cx="340" cy="330" r="31" fill="#f7cf5f" opacity="0.18" />
+        <text x="340" y="326" textAnchor="middle" className="fill-[#f7cf5f] text-[13px] font-black">
+          bias
+        </text>
+        <text x="340" y="345" textAnchor="middle" className="fill-[#f7cf5f] text-[15px] font-black">
+          {format(bias)}
         </text>
         <circle cx={neuron.x} cy={neuron.y} r={58 + clamp(Math.abs(z) * 4, 0, 18)} fill="#f7cf5f" opacity={0.12 + clamp(Math.abs(z) / 8, 0, 0.28)} filter="url(#glow)" />
         <circle cx={neuron.x} cy={neuron.y} r="54" fill="#25211a" stroke="#f7cf5f" strokeWidth="4" />
@@ -557,7 +569,7 @@ function NeuronWeightedVoteScene({
         <SignalEdge from={neuron} to={output} weight={z} />
         <SignalPulse key={`${pulse}-out`} from={neuron} to={output} delay={0.45} positive={z >= 0} />
         <Node x={output.x} y={output.y} label="z" value={z} active={Math.abs(z) / 2} />
-        <FormulaStrip lines={[`z = (${format(inputs[0])})(${format(weights[0])}) + (${format(inputs[1])})(${format(weights[1])}) + (${format(inputs[2])})(${format(weights[2])}) + ${format(bias)}`, `z = ${format(z)}`]} />
+        <FormulaStrip lines={[`score z = weighted feature evidence + baseline bias`, `z = ${format(z)}`]} />
       </svg>
     </VisualFrame>
   );
@@ -576,32 +588,51 @@ function ActivationBehaviorScene({
 }) {
   const curve = useMemo(() => activationPath(activation), [activation]);
   const point = graphPoint(z, output, activation);
+  const rawX = point.x;
+  const rawY = point.y;
+  const outputBarTop = 310 - clamp(activation === "relu" ? output / 4 : output, 0, 1) * 210;
 
   return (
     <VisualFrame>
       <svg viewBox="0 0 720 380" className="h-full w-full" role="img" aria-label="Activation function graph">
         <GridLines />
-        <text x="42" y="48" className="fill-[#211c18] text-[24px] font-black">
-          activation graph
+        <text x="42" y="42" className="fill-[#211c18] text-[23px] font-black">
+          Activation maps score to response
         </text>
-        <line x1="80" y1="300" x2="640" y2="300" stroke="#332820" strokeWidth="2" />
-        <line x1="120" y1="330" x2="120" y2="55" stroke="#332820" strokeWidth="2" />
-        <path d={curve} fill="none" stroke="#137a72" strokeWidth="5" strokeLinecap="round" />
-        <line x1={point.x} y1="300" x2={point.x} y2={point.y} stroke="#ef6a45" strokeWidth="3" strokeDasharray="8 7" />
-        <circle key={pulse} cx={point.x} cy={point.y} r="13" fill="#f7cf5f" className="signal-pop" />
-        <circle cx={point.x} cy={point.y} r="8" fill="#ef6a45" />
-        <text x={point.x} y={point.y - 22} textAnchor="middle" className="fill-[#211c18] text-[14px] font-black">
-          z {format(z)}
+        <text x="42" y="68" className="fill-[#665748] text-[14px] font-bold">
+          Move the score z. The curve tells the neuron how strongly to fire.
         </text>
+        <g transform="translate(20 8)">
+          <line x1="90" y1="300" x2="515" y2="300" stroke="#332820" strokeWidth="2" />
+          <line x1="135" y1="320" x2="135" y2="72" stroke="#332820" strokeWidth="2" />
+          <text x="500" y="326" textAnchor="end" className="fill-[#211c18] text-[13px] font-black">raw score z</text>
+          <text x="104" y="84" textAnchor="middle" className="fill-[#211c18] text-[13px] font-black">output y</text>
+          <line x1="135" y1="190" x2="515" y2="190" stroke="#211c18" strokeWidth="1" opacity="0.2" strokeDasharray="5 6" />
+          <line x1="325" y1="300" x2="325" y2="72" stroke="#211c18" strokeWidth="1" opacity="0.18" strokeDasharray="5 6" />
+          <text x="325" y="318" textAnchor="middle" className="fill-[#665748] text-[12px] font-bold">z = 0</text>
+          <path d={curve} fill="none" stroke="#137a72" strokeWidth="5" strokeLinecap="round" />
+          <line x1={rawX} y1="300" x2={rawX} y2={rawY} stroke="#ef6a45" strokeWidth="3" strokeDasharray="8 7" />
+          <line x1="135" y1={rawY} x2={rawX} y2={rawY} stroke="#ef6a45" strokeWidth="3" strokeDasharray="8 7" />
+          <circle key={pulse} cx={rawX} cy={rawY} r="13" fill="#f7cf5f" className="signal-pop" />
+          <circle cx={rawX} cy={rawY} r="8" fill="#ef6a45" />
+          <text x={clamp(rawX, 210, 500)} y={rawY - 20} textAnchor="middle" className="fill-[#211c18] text-[14px] font-black">
+            z {format(z)}
+          </text>
+          <text x="150" y={rawY - 10} className="fill-[#ef6a45] text-[13px] font-black">
+            y {format(output)}
+          </text>
+        </g>
+        <g transform="translate(560 92)">
+          <rect x="0" y="0" width="96" height="240" rx="12" fill="#f3ead8" stroke="#211c18" strokeWidth="2" />
+          <line x1="48" y1="218" x2="48" y2={outputBarTop - 92} stroke="#ef6a45" strokeWidth="20" strokeLinecap="round" />
+          <circle cx="48" cy={outputBarTop - 92} r="20" fill="#f7cf5f" opacity="0.35" />
+          <circle cx="48" cy={outputBarTop - 92} r="11" fill="#ef6a45" />
+          <text x="48" y="268" textAnchor="middle" className="fill-[#211c18] text-[14px] font-black">neuron fire</text>
+        </g>
         <text x="560" y="82" className="fill-[#211c18] text-[18px] font-black">
-          output {format(output)}
+          {activation}: {format(output)}
         </text>
-        <circle cx="580" cy="190" r={34 + clamp(output * 18, 0, 34)} fill="#f7cf5f" opacity="0.28" />
-        <circle cx="580" cy="190" r="38" fill="#fff8e8" stroke="#211c18" strokeWidth="3" />
-        <text x="580" y="196" textAnchor="middle" className="fill-[#211c18] text-[18px] font-black">
-          y
-        </text>
-        <FormulaStrip lines={[`${activation}(z)`, `z = ${format(z)} -> output = ${format(output)}`]} />
+        <FormulaStrip lines={[`score z = ${format(z)}`, `${activation}(z) = ${format(output)}`]} />
       </svg>
     </VisualFrame>
   );
@@ -622,17 +653,46 @@ function PerceptronGeometryScene({
   selectedPoint: string;
   onSelectPoint: (id: string) => void;
 }) {
-  const line = boundaryLine(boundary);
+  const line = boundarySegment(boundary);
+  const normalEnd = normalizeVector({ x: boundary.w1, y: boundary.w2 }, 1.1);
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
       <VisualFrame dark>
         <svg viewBox="0 0 720 420" className="h-full w-full" role="img" aria-label="Perceptron decision plane">
-          <GridLines dark />
-          <DecisionRegions boundary={boundary} />
-          <line x1={toPlaneX(line[0].x)} y1={toPlaneY(line[0].y)} x2={toPlaneX(line[1].x)} y2={toPlaneY(line[1].y)} stroke="#fff8e8" strokeWidth="5" />
-          <text x="42" y="45" className="fill-[#fff8e8] text-[22px] font-black">
-            w1x + w2y + b = 0
+          <defs>
+            <clipPath id="plane-clip">
+              <rect x="110" y="74" width="430" height="276" rx="10" />
+            </clipPath>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#f7cf5f" />
+            </marker>
+          </defs>
+          <rect x="110" y="74" width="430" height="276" rx="10" fill="#11100e" stroke="#fff8e8" strokeOpacity="0.25" />
+          <g clipPath="url(#plane-clip)">
+            <DecisionRegions boundary={boundary} />
+            <PlaneAxes />
+            {line ? (
+              <line x1={toPlaneX(line[0].x)} y1={toPlaneY(line[0].y)} x2={toPlaneX(line[1].x)} y2={toPlaneY(line[1].y)} stroke="#fff8e8" strokeWidth="5" />
+            ) : null}
+          </g>
+          <line
+            x1={toPlaneX(0)}
+            y1={toPlaneY(0)}
+            x2={toPlaneX(normalEnd.x)}
+            y2={toPlaneY(normalEnd.y)}
+            stroke="#f7cf5f"
+            strokeWidth="4"
+            markerEnd="url(#arrow)"
+          />
+          <text x={toPlaneX(normalEnd.x) + 8} y={toPlaneY(normalEnd.y) - 8} className="fill-[#f7cf5f] text-[13px] font-black">
+            weight vector
+          </text>
+          <text x="42" y="42" className="fill-[#fff8e8] text-[22px] font-black">
+            Decision boundary: z = 0
+          </text>
+          <text x="42" y="66" className="fill-[#d9cfb8] text-[14px] font-bold">
+            x-axis: study time. y-axis: sleep quality. Bias slides the line.
           </text>
           {trainingPoints.map((point) => {
             const score = boundary.w1 * point.x + boundary.w2 * point.y + boundary.b;
@@ -648,20 +708,18 @@ function PerceptronGeometryScene({
                   stroke={prediction === point.label ? "#10100f" : "#fff8e8"}
                   strokeWidth={selected ? 5 : 3}
                 />
-                <text x={toPlaneX(point.x)} y={toPlaneY(point.y) + 5} textAnchor="middle" className="fill-[#10100f] text-[12px] font-black">
-                  {point.id}
-                </text>
               </g>
             );
           })}
+          <FormulaStrip lines={[`z = ${format(boundary.w1)}(study) + ${format(boundary.w2)}(sleep) + ${format(boundary.b)}`, "boundary is where z = 0"]} />
         </svg>
       </VisualFrame>
       <div className="rounded-lg bg-[#fff8e8] p-4 text-[#211c18]">
         <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-[#137a72]">selected point</p>
         <h3 className="mt-2 text-2xl font-black">Point {selectedPoint.toUpperCase()}</h3>
         <div className="mt-4 space-y-3 font-mono text-sm">
-          <p>x = {format(selected.x)}</p>
-          <p>y = {format(selected.y)}</p>
+          <p>study time = {format(selected.x)}</p>
+          <p>sleep quality = {format(selected.y)}</p>
           <p>score = {format(selectedScore)}</p>
           <p>prediction = {selectedPrediction}</p>
           <p>label = {selected.label}</p>
@@ -723,6 +781,7 @@ function BackpropScene({
   target,
   loss,
   pulse,
+  learningRate,
 }: {
   input: number[];
   weights: number[];
@@ -731,49 +790,79 @@ function BackpropScene({
   target: number;
   loss: number;
   pulse: number;
+  learningRate: number;
 }) {
-  const left = [
-    { x: 90, y: 130 },
-    { x: 90, y: 270 },
-  ];
-  const neuron = { x: 350, y: 200 };
-  const out = { x: 595, y: 200 };
-  const error = target - prediction;
+  const error = prediction - target;
+  const gradient = error * prediction * (1 - prediction) * input[0];
+  const nextWeight = weights[0] - learningRate * gradient;
+  const xForWeight = (weight: number) => 90 + ((clamp(weight, -2.2, 2.2) + 2.2) / 4.4) * 470;
+  const lossForWeight = (weight: number) => {
+    const pred = activationValue("sigmoid", input[0] * weight + input[1] * weights[1] + bias);
+    return 0.5 * (target - pred) ** 2;
+  };
+  const yForLoss = (value: number) => 315 - clamp(value / 0.5, 0, 1) * 220;
+  const curve = Array.from({ length: 120 }, (_, index) => {
+    const weight = -2.2 + (index / 119) * 4.4;
+    const x = xForWeight(weight);
+    const y = yForLoss(lossForWeight(weight));
+    return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+  }).join(" ");
+  const currentPoint = { x: xForWeight(weights[0]), y: yForLoss(loss) };
+  const nextPoint = { x: xForWeight(nextWeight), y: yForLoss(lossForWeight(nextWeight)) };
 
   return (
     <VisualFrame dark>
-      <svg viewBox="0 0 720 400" className="h-full w-full" role="img" aria-label="Backpropagation intuition scene">
+      <svg viewBox="0 0 720 420" className="h-full w-full" role="img" aria-label="Gradient descent loss landscape">
+        <defs>
+          <marker id="descent-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#f7cf5f" />
+          </marker>
+        </defs>
         <GridLines dark />
-        {left.map((node, index) => (
-          <g key={index}>
-            <SignalEdge from={node} to={neuron} weight={weights[index]} />
-            <SignalPulse key={`${pulse}-back-${index}`} from={neuron} to={node} delay={index * 0.1} positive={error >= 0} reverse />
-            <Node x={node.x} y={node.y} label={`x${index + 1}`} value={input[index]} active={input[index]} />
-            <text x="165" y={node.y + 5} className="fill-[#fff8e8] text-[15px] font-bold">
-              w{index + 1} = {format(weights[index])}
-            </text>
-          </g>
-        ))}
-        <circle cx={neuron.x} cy={neuron.y} r="55" fill="#25211a" stroke="#f7cf5f" strokeWidth="4" />
-        <text x={neuron.x} y={neuron.y - 4} textAnchor="middle" className="fill-[#fff8e8] text-[18px] font-black">
-          predict
+        <text x="42" y="44" className="fill-[#fff8e8] text-[22px] font-black">
+          Gradient descent: slide downhill on loss
         </text>
-        <text x={neuron.x} y={neuron.y + 22} textAnchor="middle" className="fill-[#f7cf5f] text-[14px] font-black">
-          b {format(bias)}
+        <text x="42" y="70" className="fill-[#d9cfb8] text-[14px] font-bold">
+          One weight is on the x-axis. Loss is height. Backprop gives the slope.
         </text>
-        <SignalEdge from={neuron} to={out} weight={prediction} />
-        <SignalPulse key={`${pulse}-out-back`} from={out} to={neuron} delay={0.25} positive={error >= 0} reverse />
-        <Node x={out.x} y={out.y} label="y" value={prediction} active={prediction} />
-        <line x1="600" y1="312" x2="600" y2={312 - target * 100} stroke="#6de0d2" strokeWidth="8" strokeLinecap="round" />
-        <line x1="632" y1="312" x2="632" y2={312 - prediction * 100} stroke="#ef6a45" strokeWidth="8" strokeLinecap="round" />
-        <text x="560" y="340" className="fill-[#fff8e8] text-[13px] font-black">target</text>
-        <text x="615" y="340" className="fill-[#fff8e8] text-[13px] font-black">prediction</text>
-        <text x="42" y="48" className="fill-[#fff8e8] text-[22px] font-black">
-          loss = {format(loss)}
+        <line x1="90" y1="315" x2="560" y2="315" stroke="#fff8e8" strokeWidth="2" />
+        <line x1="90" y1="315" x2="90" y2="92" stroke="#fff8e8" strokeWidth="2" />
+        <text x="558" y="344" textAnchor="end" className="fill-[#fff8e8] text-[13px] font-black">weight for study time, w1</text>
+        <text x="58" y="112" className="fill-[#fff8e8] text-[13px] font-black">loss</text>
+        <path d={curve} fill="none" stroke="#6de0d2" strokeWidth="5" strokeLinecap="round" />
+        <line
+          key={`descent-${pulse}`}
+          x1={currentPoint.x}
+          y1={currentPoint.y}
+          x2={nextPoint.x}
+          y2={nextPoint.y}
+          stroke="#f7cf5f"
+          strokeWidth="5"
+          markerEnd="url(#descent-arrow)"
+          className="signal-pop"
+        />
+        <circle cx={currentPoint.x} cy={currentPoint.y} r="15" fill="#ef6a45" stroke="#fff8e8" strokeWidth="3" />
+        <circle cx={nextPoint.x} cy={nextPoint.y} r="8" fill="#f7cf5f" />
+        <text x={currentPoint.x} y={currentPoint.y - 24} textAnchor="middle" className="fill-[#fff8e8] text-[14px] font-black">
+          current w1 {format(weights[0])}
         </text>
-        <text x="42" y="78" className={error >= 0 ? "fill-[#6de0d2] text-[15px] font-bold" : "fill-[#ff8c6b] text-[15px] font-bold"}>
-          error signal = {format(error)}
-        </text>
+        <g transform="translate(590 108)">
+          <rect x="0" y="0" width="95" height="210" rx="12" fill="#fff8e8" opacity="0.95" />
+          <text x="14" y="32" className="fill-[#211c18] text-[13px] font-black">prediction</text>
+          <text x="14" y="57" className="fill-[#137a72] text-[20px] font-black">{format(prediction)}</text>
+          <text x="14" y="92" className="fill-[#211c18] text-[13px] font-black">target</text>
+          <text x="14" y="117" className="fill-[#137a72] text-[20px] font-black">{target}</text>
+          <text x="14" y="152" className="fill-[#211c18] text-[13px] font-black">loss</text>
+          <text x="14" y="177" className="fill-[#ef6a45] text-[20px] font-black">{format(loss)}</text>
+        </g>
+        <g transform="translate(96 346)">
+          <text x="0" y="0" className="fill-[#d9cfb8] text-[13px] font-bold">
+            study time = {format(input[0])} | sleep quality = {format(input[1])} | bias baseline = {format(bias)}
+          </text>
+          <text x="0" y="24" className="fill-[#f7cf5f] text-[13px] font-black">
+            slope from backprop = {format(gradient)}; next step moves w1 toward {format(nextWeight)}
+          </text>
+        </g>
       </svg>
     </VisualFrame>
   );
@@ -876,51 +965,107 @@ function activationPath(kind: ActivationKind) {
 }
 
 function graphPoint(z: number, output: number, kind: ActivationKind) {
-  const x = 120 + ((clamp(z, -4, 4) + 4) / 8) * 500;
+  const x = 135 + ((clamp(z, -4, 4) + 4) / 8) * 380;
   const normalized = kind === "relu" ? clamp(output / 4, 0, 1) : clamp(output, 0, 1);
   const y = 300 - normalized * 220;
   return { x, y };
 }
 
 function boundaryLine(boundary: { w1: number; w2: number; b: number }) {
-  if (Math.abs(boundary.w2) < 0.04) {
-    const x = -boundary.b / (boundary.w1 || 0.01);
-    return [
-      { x, y: -3 },
-      { x, y: 3 },
-    ];
-  }
-  return [
-    { x: -3, y: -(boundary.w1 * -3 + boundary.b) / boundary.w2 },
-    { x: 3, y: -(boundary.w1 * 3 + boundary.b) / boundary.w2 },
+  return boundarySegment(boundary) ?? [
+    { x: -3, y: 0 },
+    { x: 3, y: 0 },
   ];
 }
 
+function boundarySegment(boundary: { w1: number; w2: number; b: number }) {
+  const candidates: XY[] = [];
+  if (Math.abs(boundary.w2) > 0.0001) {
+    [-3, 3].forEach((x) => {
+      const y = -(boundary.w1 * x + boundary.b) / boundary.w2;
+      if (y >= -3 && y <= 3) candidates.push({ x, y });
+    });
+  }
+  if (Math.abs(boundary.w1) > 0.0001) {
+    [-3, 3].forEach((y) => {
+      const x = -(boundary.w2 * y + boundary.b) / boundary.w1;
+      if (x >= -3 && x <= 3) candidates.push({ x, y });
+    });
+  }
+  const unique = candidates.filter(
+    (point, index, all) =>
+      all.findIndex((other) => Math.abs(other.x - point.x) < 0.001 && Math.abs(other.y - point.y) < 0.001) ===
+      index,
+  );
+  return unique.length >= 2 ? [unique[0], unique[1]] : null;
+}
+
 function toPlaneX(x: number) {
-  return 360 + x * 82;
+  return 325 + x * 68;
 }
 
 function toPlaneY(y: number) {
-  return 210 - y * 56;
+  return 212 - y * 43;
 }
 
 function DecisionRegions({ boundary }: { boundary: { w1: number; w2: number; b: number } }) {
-  const cells = Array.from({ length: 30 }, (_, row) =>
-    Array.from({ length: 42 }, (_, col) => {
-      const x = -3.2 + col * 0.16;
-      const y = 3.2 - row * 0.22;
-      const fire = boundary.w1 * x + boundary.w2 * y + boundary.b >= 0;
-      return { x: toPlaneX(x), y: toPlaneY(y), fire };
-    }),
-  ).flat();
+  const positive = halfPlanePolygon(boundary, true);
 
   return (
     <g>
-      {cells.map((cell, index) => (
-        <rect key={index} x={cell.x - 7} y={cell.y - 7} width="14" height="14" fill={cell.fire ? "#ef6a45" : "#6de0d2"} opacity="0.12" />
-      ))}
+      <rect x="110" y="74" width="430" height="276" fill="#6de0d2" opacity="0.18" />
+      {positive.length > 2 ? (
+        <polygon points={positive.map((point) => `${toPlaneX(point.x)},${toPlaneY(point.y)}`).join(" ")} fill="#ef6a45" opacity="0.25" />
+      ) : null}
+      <text x="128" y="334" className="fill-[#6de0d2] text-[13px] font-black">does not fire</text>
+      <text x="415" y="96" className="fill-[#ff8c6b] text-[13px] font-black">fires</text>
     </g>
   );
+}
+
+function PlaneAxes() {
+  return (
+    <g opacity="0.65">
+      <line x1={toPlaneX(-3)} y1={toPlaneY(0)} x2={toPlaneX(3)} y2={toPlaneY(0)} stroke="#fff8e8" strokeWidth="1.5" />
+      <line x1={toPlaneX(0)} y1={toPlaneY(-3)} x2={toPlaneX(0)} y2={toPlaneY(3)} stroke="#fff8e8" strokeWidth="1.5" />
+      <text x={toPlaneX(2.2)} y={toPlaneY(0) - 8} className="fill-[#d9cfb8] text-[12px] font-bold">study time</text>
+      <text x={toPlaneX(0) + 8} y={toPlaneY(2.7)} className="fill-[#d9cfb8] text-[12px] font-bold">sleep quality</text>
+    </g>
+  );
+}
+
+function halfPlanePolygon(boundary: { w1: number; w2: number; b: number }, positive: boolean) {
+  const inside = (point: XY) => {
+    const score = boundary.w1 * point.x + boundary.w2 * point.y + boundary.b;
+    return positive ? score >= 0 : score <= 0;
+  };
+  const intersect = (a: XY, b: XY) => {
+    const da = boundary.w1 * a.x + boundary.w2 * a.y + boundary.b;
+    const db = boundary.w1 * b.x + boundary.w2 * b.y + boundary.b;
+    const t = da / (da - db || 0.0001);
+    return { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) };
+  };
+  const polygon = [
+    { x: -3, y: -3 },
+    { x: 3, y: -3 },
+    { x: 3, y: 3 },
+    { x: -3, y: 3 },
+  ];
+  const output: XY[] = [];
+  polygon.forEach((current, index) => {
+    const previous = polygon[(index + polygon.length - 1) % polygon.length];
+    const currentInside = inside(current);
+    const previousInside = inside(previous);
+    if (currentInside && !previousInside) output.push(intersect(previous, current));
+    if (currentInside) output.push(current);
+    if (!currentInside && previousInside) output.push(intersect(previous, current));
+  });
+  return output;
+}
+
+function normalizeVector(vector: XY, length: number) {
+  const magnitude = Math.hypot(vector.x, vector.y) || 1;
+  return { x: (vector.x / magnitude) * length, y: (vector.y / magnitude) * length };
 }
 
 function CombinedRegion({ hiddenScale }: { hiddenScale: number }) {
